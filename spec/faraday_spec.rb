@@ -187,6 +187,26 @@ describe "faraday" do
       expect(connection.get("/resources").status).to eq(200)
     end
 
+    it "accepts a sha512 digest signatures" do # default
+      require 'ey-hmac/faraday'
+      Bundler.require(:rack)
+
+      app = lambda do |env|
+        authenticated = Ey::Hmac.authenticated?(env, accept_digests: [:sha512], adapter: Ey::Hmac::Adapter::Rack) do |auth_id|
+          (auth_id == key_id) && key_secret
+        end
+        [(authenticated ? 200 : 401), {"Content-Type" => "text/plain"}, []]
+      end
+
+      connection = Faraday.new do |c|
+        c.use :hmac, key_id, key_secret, sign_with: :sha512
+        c.adapter(:rack, app)
+      end
+
+      expect(connection.get("/resources").status).to eq(200)
+    end
+
+
     it "signs empty request" do
       require 'ey-hmac/faraday'
       Bundler.require(:rack)
